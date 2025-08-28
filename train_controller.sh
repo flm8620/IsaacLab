@@ -4,14 +4,24 @@
 # Jetbot PPO Training Controller Script
 # 用于控制训练过程，定期重启环境以防止过拟合
 # =============================================================================
+set -e
 
-# 设置环境变量
-# 禁用DISPLAY以避免Isaac Sim尝试推流X11，这会干扰仿真运行
-export DISPLAY=""
+
+# HEADLESS模式选项
+HEADLESS=false  # 设置为true启用headless模式，false启用图形界面
 
 # 配置参数
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PYTHON_EXECUTABLE="/isaac-sim/python.sh"  # Isaac Sim Python执行器
+
+# 检测是否在Docker容器中运行
+if [[ -f /.dockerenv ]] || [[ -n "${DOCKER_CONTAINER:-}" ]] || grep -q 'docker\|lxc' /proc/1/cgroup 2>/dev/null; then
+    # 在Docker容器中，使用Isaac Sim Python执行器
+    PYTHON_EXECUTABLE="/isaac-sim/python.sh"
+else
+    # 在Conda环境中，使用普通Python
+    PYTHON_EXECUTABLE="python"
+fi
+
 PYTHON_SCRIPT="$SCRIPT_DIR/jetbot_ppo.py"
 OUTPUT_DIR="$SCRIPT_DIR/outputs"
 LOG_DIR="$SCRIPT_DIR/logs/controller"
@@ -90,8 +100,12 @@ start_training_session() {
         --rollouts_offset "$rollouts_completed"
         --trial_name "$TRIAL_NAME"
         --output_dir "$OUTPUT_DIR"
-        --headless
     )
+    
+    # 如果启用HEADLESS模式，添加--headless参数
+    if [[ "$HEADLESS" == "true" ]]; then
+        cmd_args+=(--headless)
+    fi
     
     # 如果有checkpoint，添加resume参数
     if [[ -n "$checkpoint_path" && -f "$checkpoint_path" ]]; then
@@ -107,6 +121,8 @@ start_training_session() {
 main() {
     log "开始Jetbot PPO训练控制器"
     log "Trial Name: $TRIAL_NAME"
+    log "Python执行器: $PYTHON_EXECUTABLE"
+    log "Headless模式: $HEADLESS"
     log "总rollouts: $TOTAL_ROLLOUTS"
     log "每会话rollouts: $ROLLOUTS_PER_SESSION"
     log "预计会话数: $((TOTAL_ROLLOUTS / ROLLOUTS_PER_SESSION))"
@@ -171,6 +187,8 @@ show_help() {
     --rollouts-per-session N 每会话rollout数量 (默认: $ROLLOUTS_PER_SESSION)
     --num-envs N            环境数量 (默认: $NUM_ENVS)
     --num-steps N           每rollout步数 (默认: $NUM_STEPS)
+    --headless              启用headless模式 (默认: $HEADLESS)
+    --no-headless           禁用headless模式
     --reset                 重置训练状态，从头开始
     --status                显示当前训练状态
     --help                  显示此帮助信息
@@ -179,6 +197,7 @@ show_help() {
     $0                                    # 使用默认参数开始训练
     $0 --total-rollouts 500               # 设置总rollout数量
     $0 --rollouts-per-session 5           # 设置每会话rollout数量
+    $0 --no-headless                     # 禁用headless模式，启用图形界面
     $0 --reset                           # 重置并从头开始训练
     $0 --status                          # 查看训练状态
 EOF
@@ -224,6 +243,14 @@ while [[ $# -gt 0 ]]; do
             NUM_STEPS="$2"
             shift 2
             ;;
+        --headless)
+            HEADLESS=true
+            shift 1
+            ;;
+        --no-headless)
+            HEADLESS=false
+            shift 1
+            ;;
         --reset)
             reset_state
             exit 0
@@ -243,6 +270,12 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# 设置环境变量（在命令行参数解析后）
+if [[ "$HEADLESS" == "true" ]]; then
+    # 禁用DISPLAY以避免Isaac Sim尝试推流X11，这会干扰仿真运行
+    export DISPLAY=""
+fi
 
 # 运行主程序
 main

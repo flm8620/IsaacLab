@@ -1,19 +1,7 @@
 from __future__ import annotations
-
 import argparse
-import math
-import os
-import time
-import torch
-from collections.abc import Sequence
-import cv2
-import numpy as np
-from datetime import datetime
-from tqdm import tqdm
-import torch.nn as nn
-import torch.optim as optim
-from torch.distributions import Normal, Categorical
-from torch.utils.tensorboard import SummaryWriter
+# ensure we import AppLauncher first
+# ref https://isaac-sim.github.io/IsaacLab/main/source/refs/issues.html
 from isaaclab.app import AppLauncher
 
 # Add argparse arguments
@@ -74,6 +62,20 @@ DISCRETE_SPEEDS = [-10.0, -5.0, -1.0, 0.0, 1.0, 5.0, 10.0]
 # 目标到达判断阈值（距离目标点多少米内算到达）
 GOAL_REACH_THRESHOLD = 0.5
 
+
+import math
+import os
+import time
+import torch
+from collections.abc import Sequence
+import cv2
+import numpy as np
+from datetime import datetime
+from tqdm import tqdm
+import torch.nn as nn
+import torch.optim as optim
+from torch.distributions import Normal, Categorical
+from torch.utils.tensorboard import SummaryWriter
 
 import isaaclab.sim as sim_utils
 from isaaclab.assets import Articulation, ArticulationCfg
